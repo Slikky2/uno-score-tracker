@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UNO Score Tracker</title>
+<style>
+  :root {
+    --bg-light: #f4f4f4;
+    --bg-dark: #121212;
+    --text-light: #333;
+    --text-dark: #eee;
+    --accent: #d32f2f;
+  }
+  body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-light);
+    margin: 0; padding: 2rem;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  body.dark {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+  }
+  h1 {
+    text-align: center;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+  .container {
+    max-width: 600px;
+    margin: auto;
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+  body.dark .container {
+    background: #222;
+  }
+  input[type="text"], select, button {
+    width: 100%;
+    font-size: 1rem;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+  }
+  body.dark input[type="text"], body.dark select {
+    background: #444;
+    border-color: #555;
+    color: var(--text-dark);
+  }
+  button {
+    cursor: pointer;
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    margin-top: 1rem;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #b71c1c;
+  }
+  label {
+    font-weight: 600;
+  }
+  .player-row {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .player-row span {
+    width: 120px;
+  }
+  .player-row input[type="number"] {
+    width: 60px;
+    margin-left: 1rem;
+  }
+  #resultsArea {
+    margin-top: 1rem;
+  }
+  .winner {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--accent);
+  }
+  .game-log {
+    margin-top: 1rem;
+    border-top: 1px solid #ccc;
+    padding-top: 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .game-log.dark {
+    border-color: #555;
+  }
+  .game-entry {
+    margin-bottom: 0.5rem;
+  }
+  .dark-toggle {
+    margin-top: 1rem;
+    text-align: right;
+  }
+</style>
+
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="theme-color" content="#2196F3" />
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('✅ Service Worker registered!'))
+        .catch(err => console.error('Service Worker failed:', err));
+    });
+  }
+</script>
+
+</head>
+<body>
+  <div class="container">
+    <h1>UNO Score Tracker</h1>
+
+    <label for="playerNames">Player Names (comma separated):</label>
+    <input type="text" id="playerNames" placeholder="e.g. Kwame, Abena, Kojo" />
+
+    <button id="startMatchBtn">Start Match</button>
+
+    <div id="gameArea" style="display:none; margin-top: 1rem;">
+      <div>Game #: <span id="gameNumber">1</span></div>
+
+      <div id="playerInputs"></div>
+
+      <button id="submitGameBtn">Submit Game</button>
+      <button id="endMatchBtn" style="margin-left: 1rem;">End Match</button>
+    </div>
+
+    <div id="resultsArea" style="display:none;">
+      <div class="winner" id="winnerMessage"></div>
+
+      <label for="roastTone" style="margin-top: 1rem; display:block;">Roast Personality:</label>
+      <select id="roastTone">
+        <option value="sassy">😈 Sassy</option>
+        <option value="auntie">🧓 Auntie (Twi/English)</option>
+        <option value="wise">🧙 Wise</option>
+        <option value="pirate">🏴‍☠️ Pirate</option>
+        <option value="kind">🤗 Kind</option>
+      </select>
+
+      <button id="hearRoastBtn" style="margin-top: 0.5rem;">🔊 Hear Roast</button>
+
+      <div class="game-log" id="gameLog"></div>
+
+      <button id="resetMatchBtn" style="margin-top: 1rem;">New Match / Reset</button>
+    </div>
+
+    <div class="dark-toggle">
+      <label><input type="checkbox" id="darkModeToggle" /> Dark Mode</label>
+    </div>
+  </div>
+
+<script type="module" src="script.js"></script>
+
+</body>
+</html>
