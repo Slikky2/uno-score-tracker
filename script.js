@@ -1,149 +1,172 @@
-import { saveGameResult } from './firebase-setup.js';
-
-
+// === Global state ===
 let players = [];
-let scores = {};
-let games = [];
-let gameNumber = 1;
+let playerScores = {}; // { playerName: totalPoints }
+let currentGameNumber = 0;
+let gameResults = []; // array of per-game score objects
 
-const gameArea = document.getElementById("gameArea");
-const playerInputs = document.getElementById("playerInputs");
-const resultsArea = document.getElementById("resultsArea");
-const gameLog = document.getElementById("gameLog");
-const gameNumSpan = document.getElementById("gameNumber");
-const winnerMessage = document.getElementById("winnerMessage");
+// Rematch tracking
+let rematchGamesToPlay = 0;
+let rematchGamesPlayed = 0;
+let inRematchSeries = false;
 
-// Start a new match
-document.getElementById("startMatchBtn").onclick = () => {
-  const input = document.getElementById("playerNames").value.trim();
-  if (!input) return alert("Please enter player names");
+// DOM elements (adjust selectors to match your HTML)
+const startGameBtn = document.getElementById('startGameBtn');
+const endGameBtn = document.getElementById('endGameBtn');
+const rematchContainer = document.getElementById('rematchContainer');
+const rematchCountInput = document.getElementById('rematchCount');
+const startRematchBtn = document.getElementById('startRematchBtn');
+const gameCountDisplay = document.getElementById('gameCount');
+const resultsContainer = document.getElementById('resultsContainer');
+const playerInputsContainer = document.getElementById('playerInputs');
 
-  players = input.split(",").map(name => name.trim());
-  if (players.length < 2) return alert("At least 2 players needed");
+// Initialize players and UI
+function initializePlayers(names) {
+  players = names;
+  playerScores = {};
+  players.forEach(p => (playerScores[p] = 0));
+  currentGameNumber = 0;
+  gameResults = [];
+  inRematchSeries = false;
+  rematchGamesPlayed = 0;
+  rematchGamesToPlay = 0;
+  updateGameCountDisplay();
+  hideRematchInput();
+  resultsContainer.innerHTML = '';
+  // Setup UI for score inputs per player here...
+}
 
-  players.forEach(p => scores[p] = 0);
-  gameNumber = 1;
-  games = [];
+// Call this to start a new game (show score inputs, reset inputs)
+function startNewGame() {
+  currentGameNumber++;
+  updateGameCountDisplay();
+  resultsContainer.innerHTML = '';
+  // Show inputs for each player to enter their place (1st, 2nd, 3rd...)
+  // You can clear/reset the input fields here
+  hideRematchInput();
+}
 
-  gameNumSpan.textContent = gameNumber;
-  updatePlayerInputs();
-  gameArea.style.display = "block";
-  resultsArea.style.display = "none";
-};
+// Call this when the current game ends to save scores and continue flow
+function endGame() {
+  // Example: collect scores from inputs
+  // Scores: 1 point for 1st place, 2 points for 2nd, etc.
 
-// Render input fields for players
-function updatePlayerInputs() {
-  playerInputs.innerHTML = "";
+  const currentScores = {};
+  // Example: You must adapt this to your UI inputs to get place for each player
   players.forEach(player => {
-    const row = document.createElement("div");
-    row.className = "player-row";
-    row.innerHTML = `<span>${player}</span><input type="number" min="1" max="${players.length}" id="place-${player}" placeholder="Rank" />`;
-    playerInputs.appendChild(row);
-  });
-}
-
-// Submit a game
-document.getElementById("submitGameBtn").onclick = () => {
-  const placements = {};
-  for (let p of players) {
-    const val = parseInt(document.getElementById(`place-${p}`).value);
-    if (!val || val < 1 || val > players.length) {
-      return alert(`Enter valid place (1-${players.length}) for ${p}`);
+    const placeInput = document.getElementById(`place-${player}`); // e.g. <input id="place-Alice">
+    const place = parseInt(placeInput?.value);
+    if (!place || place < 1) {
+      alert(`Please enter a valid place for ${player}`);
+      return;
     }
-    placements[p] = val;
-  }
-
-  players.forEach(p => {
-    scores[p] += placements[p]; // lower score = better
+    currentScores[player] = place;
   });
 
-  games.push({ game: gameNumber, placements });
-  gameNumber++;
-  gameNumSpan.textContent = gameNumber;
-  updatePlayerInputs();
-};
+  // Save this game's scores
+  gameResults.push(currentScores);
 
-// End match & show results
-document.getElementById("endMatchBtn").onclick = () => {
-  gameArea.style.display = "none";
-  resultsArea.style.display = "block";
+  // Update total player scores
+  players.forEach(player => {
+    playerScores[player] += currentScores[player];
+  });
 
-  const ranked = [...players].sort((a, b) => scores[a] - scores[b]);
-  const winner = ranked[0];
-  const loser = ranked[ranked.length - 1];
+  // Show current game results & overall scores
+  displayGameResults(currentScores);
+  displayOverallScores();
 
-let rankText = `<div>🏆 <strong>${winner}</strong> is the overall winner!</div><ol>`;
-ranked.forEach(player => {
-  rankText += `<li>${player} – ${scores[player]} pts</li>`;
-});
-rankText += `</ol>`;
-winnerMessage.innerHTML = rankText;
-
-
-saveGameResult({
-  timestamp: new Date().toISOString(),
-  gameCount: games.length,
-  scores: scores,
-  history: games,
-  winner: winner,
-  loser: ranked[ranked.length - 1]
-});
-
-
-  // Generate roast
-  fetchRoast(loser);
-
-  // Show game history
-  gameLog.innerHTML = games.map(g => {
-    const scores = Object.entries(g.placements)
-      .map(([name, place]) => `${name}: ${place}`)
-      .join(", ");
-    return `<div class="game-entry">Game ${g.game}: ${scores}</div>`;
-  }).join("");
-};
-
-// Reset game
-document.getElementById("resetMatchBtn").onclick = () => {
-  players = [];
-  scores = {};
-  games = [];
-  document.getElementById("playerNames").value = "";
-  gameArea.style.display = "none";
-  resultsArea.style.display = "none";
-};
-
-// Fetch roast quote using OpenAI function
-function fetchRoast(loser) {
-  const tone = document.getElementById("roastTone").value;
-  fetch("/.netlify/functions/quote", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ loserName: loser, tone })
-  })
-  .then(res => res.json())
-  .then(data => {
-    winnerMessage.innerHTML += `<br><br><strong>💬 Roast for ${loser}:</strong> ${data.quote}`;
-    document.getElementById("hearRoastBtn").onclick = () => playRoastVoice(data.quote);
-  })
-  .catch(err => console.error("Roast error:", err));
+  if (inRematchSeries) {
+    rematchGamesPlayed++;
+    if (rematchGamesPlayed >= rematchGamesToPlay) {
+      inRematchSeries = false;
+      finalizeMatch();
+      hideRematchInput();
+    } else {
+      startNewGame();
+    }
+  } else {
+    showRematchInput();
+  }
 }
 
-// Play voiceover using OpenAI TTS
-function playRoastVoice(text) {
-  fetch("/.netlify/functions/speak", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text })
-  })
-  .then(res => res.blob())
-  .then(blob => {
-    const audio = new Audio(URL.createObjectURL(blob));
-    audio.play();
-  })
-  .catch(err => console.error("TTS error:", err));
+function displayGameResults(gameScoreObj) {
+  let html = `<h3>Game ${currentGameNumber} Results</h3><ul>`;
+  Object.entries(gameScoreObj).forEach(([player, score]) => {
+    html += `<li>${player}: ${score} point${score > 1 ? 's' : ''}</li>`;
+  });
+  html += '</ul>';
+  resultsContainer.innerHTML = html;
 }
 
-// Dark mode toggle
-document.getElementById("darkModeToggle").onchange = (e) => {
-  document.body.classList.toggle("dark", e.target.checked);
-};
+function displayOverallScores() {
+  let html = '<h3>Overall Scores</h3><ul>';
+  // Sort players by total score ascending (lowest wins)
+  const sorted = players.slice().sort((a, b) => playerScores[a] - playerScores[b]);
+  sorted.forEach(player => {
+    html += `<li>${player}: ${playerScores[player]} point${playerScores[player] !== 1 ? 's' : ''}</li>`;
+  });
+  html += '</ul>';
+  resultsContainer.innerHTML += html;
+}
+
+function finalizeMatch() {
+  // Show final overall winner and rankings
+  displayOverallScores();
+  roastLoser();
+  alert('Match series ended! Check the final results.');
+}
+
+function roastLoser() {
+  // Find player with highest score (loser)
+  const sorted = players.slice().sort((a, b) => playerScores[a] - playerScores[b]);
+  const loser = sorted[sorted.length - 1];
+
+  // Call your roast function / AI API here for the loser
+  console.log(`Roasting loser: ${loser}`);
+  // For example: generateRoast(loser);
+}
+
+// Rematch input helpers
+function showRematchInput() {
+  rematchContainer.style.display = 'block';
+}
+
+function hideRematchInput() {
+  rematchContainer.style.display = 'none';
+}
+
+function updateGameCountDisplay() {
+  if (gameCountDisplay) {
+    gameCountDisplay.textContent = `Game ${currentGameNumber}`;
+  }
+}
+
+// Hook up rematch start button
+startRematchBtn.addEventListener('click', () => {
+  const count = parseInt(rematchCountInput.value);
+  if (!count || count < 1) {
+    alert('Please enter a valid number of rematch games.');
+    return;
+  }
+  rematchGamesToPlay = count;
+  rematchGamesPlayed = 0;
+  inRematchSeries = true;
+  hideRematchInput();
+  startNewGame();
+});
+
+// Example: start game button hookup (you must create a way to input player names)
+startGameBtn.addEventListener('click', () => {
+  // Example: get player names from inputs
+  const names = [];
+  players.forEach(player => {
+    // replace with your actual UI code to get names
+  });
+  // or hardcode for test:
+  initializePlayers(['Alice', 'Bob', 'Charlie', 'Diana']);
+  startNewGame();
+});
+
+// Example: end game button hookup
+endGameBtn.addEventListener('click', () => {
+  endGame();
+});
